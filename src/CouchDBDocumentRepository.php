@@ -77,4 +77,45 @@ class CouchDBDocumentRepository implements CouchDBDocumentRepositoryInterface
     {
         return $this->connection->request('GET', $id);
     }
+
+
+    //Elimina un documento de CouchDB consultando su revisión (_rev) actual para evitar conflictos de concurrencia.
+     
+    public function delete(string $id): array
+    {
+        $current = $this->find($id);
+
+        if (isset($current['error'])) {
+            throw new RuntimeException(
+                "No se pudo obtener el documento '{$id}' para eliminar: " . ($current['reason'] ?? $current['error'])
+            );
+        }
+
+        $result = $this->connection->request('DELETE', $id . '?rev=' . urlencode($current['_rev']));
+
+        if (isset($result['error'])) {
+            throw new RuntimeException(
+                "Error al eliminar el documento '{$id}': {$result['error']} - " . ($result['reason'] ?? '')
+            );
+        }
+
+        return $result;
+    }
+    
+    //Recupera todos los documentos existentes en la base de datos (_all_docs).
+    
+    public function findAll(bool $includeDocs = true): array
+    {
+        $endpoint = '_all_docs' . ($includeDocs ? '?include_docs=true' : '');
+        $result = $this->connection->request('GET', $endpoint);
+
+        if (isset($result['error'])) {
+            throw new RuntimeException(
+                "Error al consultar todos los documentos: {$result['error']} - " . ($result['reason'] ?? '')
+            );
+        }
+
+        return $result;
+    }
+
 }
